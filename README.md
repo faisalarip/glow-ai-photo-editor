@@ -71,7 +71,7 @@ The app boots into `_AuthGate` (`lib/main.dart`) which streams `auth.onAuthState
 - **Configured + signed out** → `AuthScreen` (email/password, toggleable sign-in / sign-up)
 - **Configured + signed in** → shell with live data; Profile → Library → "Keluar" row signs out
 
-Sign-up does **email confirmation by default**. For local dev, turn it off at **Authentication → Sign In / Providers → Email → uncheck "Confirm email"** in Supabase Studio so you can land in the app immediately after signing up.
+Sign-up triggers **email confirmation** — Supabase sends a magic link to the address you used. Click that link, then come back to the app and tap **Masuk** to sign in.
 
 The Library screen has a floating **"+" button** that inserts a sample project (`ProjectsRepo.createSample`) tied to the current user — that's the simplest way to verify auth + RLS + the user-scoped read all work end-to-end.
 

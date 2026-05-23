@@ -64,7 +64,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (res?.session == null) {
           setState(() {
             _info =
-                'Cek email kamu untuk konfirmasi link sign-up. Atau matikan "Confirm email" di Supabase Auth settings supaya langsung masuk.';
+                'Akun dibuat. Cek inbox kamu — klik link konfirmasi di email Supabase, lalu balik ke sini dan tap Masuk.';
           });
         }
       }

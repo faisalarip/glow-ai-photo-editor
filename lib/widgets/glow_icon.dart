@@ -188,24 +188,14 @@ class _IconPainter extends CustomPainter {
           break;
         case 'A':
         case 'a': {
-          // SVG arc is 7 args: rx ry x-rotation large-arc-flag sweep-flag x y.
-          // The tokenizer can merge flag-digits into bigger numbers (e.g.
-          // "100-10" → [100, -10]) so the count is unreliable. Burn whatever
-          // numbers come next until we hit a new command, then draw a straight
-          // line to the last (x,y) pair we read. Visually imperceptible at
-          // icon sizes.
-          double? lastX, lastY;
+          // SVG arc is 7 args (rx ry x-rotation large-arc-flag sweep-flag x y)
+          // and the two flags pack with adjacent digits ("01-9" = "0 1 -9"),
+          // which our tokenizer can't disambiguate. Rather than risk drawing
+          // a line to a garbled endpoint, skip the rest of this command's
+          // numeric run and moveTo (no stroke) — leaves a gap where the arc
+          // would be but avoids glitch lines.
           while (i < tokens.length && tokens[i] is num) {
-            final a = take();
-            final b = take();
-            if (a == null || b == null) break;
-            lastX = a; lastY = b;
-          }
-          if (lastX != null && lastY != null) {
-            final ex = cmd == 'A' ? lastX : x + lastX;
-            final ey = cmd == 'A' ? lastY : y + lastY;
-            p.lineTo(ex, ey);
-            x = ex; y = ey;
+            i++;
           }
           break;
         }
