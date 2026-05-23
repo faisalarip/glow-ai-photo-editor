@@ -9,10 +9,13 @@ import 'screens/home.dart';
 import 'screens/library_profile_paywall.dart';
 import 'screens/onboarding.dart';
 import 'screens/templates_compare.dart';
+import 'services/supabase_client.dart';
 import 'widgets/glow_icon.dart';
 import 'widgets/primitives.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseInit.init();
   runApp(const GlowApp());
 }
 

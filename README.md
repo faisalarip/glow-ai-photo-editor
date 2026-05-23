@@ -17,15 +17,58 @@ lib/
 │   ├── primitives.dart  # GlowLogo, Surface, Chip, Avatar, BrandMark, TabBar, ScreenFrame
 │   ├── photo.dart       # PhotoPlaceholder (creator + product silhouette)
 │   └── ai_magic.dart    # AIOrb, ScanLineFx, ParticleField, BrandMatchMeter, AICanvasOverlay…
+├── services/
+│   ├── env.dart                # --dart-define loader (SUPABASE_URL/SUPABASE_ANON_KEY)
+│   ├── supabase_client.dart    # SupabaseInit + client accessor
+│   ├── auth_service.dart       # signIn / signUp / signOut (no-ops when offline)
+│   ├── profiles_repo.dart      # current user's profile
+│   ├── briefs_repo.dart        # open briefs (joined with brand)
+│   ├── projects_repo.dart      # owner's projects (joined with brand)
+│   └── models/models.dart      # Profile, Brand, Brief, Project + enum mappers
 └── screens/
     ├── onboarding.dart            # A · welcome / B · features / C · live AI demo loop
-    ├── home.dart                  # Home (feed)
+    ├── home.dart                  # Home (greeting + brief banner from repo)
     ├── editor.dart                # Hybrid editor (tools + AI prompt)
     ├── ai_recs.dart               # AI Recommendations + BrandMatchMeter
-    ├── flow.dart                  # Export sheet + Brand Inbox
+    ├── flow.dart                  # Export sheet + Brand Inbox (FutureBuilder over BriefsRepo)
     ├── templates_compare.dart     # Templates gallery + Before/After slider
-    └── library_profile_paywall.dart # Library, Profile, Paywall · Glow Pro
+    └── library_profile_paywall.dart # Library (ProjectsRepo), Profile (ProfilesRepo), Paywall
 ```
+
+## Backend — Supabase
+
+Schema lives under `supabase/migrations/0001_init.sql` — five tables (`profiles`, `brands`, `briefs`, `brief_applications`, `projects`) with row-level security and a trigger that auto-creates a profile on signup. Seed data is in `supabase/seed/seed.sql`.
+
+### Setup (5 min)
+
+1. **Create a Supabase project** at https://supabase.com/dashboard
+2. **Run the schema** — open the SQL Editor in Supabase Studio, paste the contents of `supabase/migrations/0001_init.sql`, run. Then paste `supabase/seed/seed.sql` and run.
+3. **Copy your project URL + anon key** from Project Settings → API
+4. **Run the app with the keys passed in:**
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=eyJh...
+```
+
+When `SUPABASE_URL` is unset, `Env.isConfigured == false` and every repo returns the original demo data — so you can keep iterating the UI offline without a backend.
+
+### What's wired
+
+- **Home A** → `ProfilesRepo.currentProfile()` (greeting) + `BriefsRepo.openBriefs()` (top banner)
+- **Brand Inbox** → `BriefsRepo.openBriefs()` (full list with `brands` join, deadline formatting)
+- **Library** → `ProjectsRepo.myProjects()` (grid with `brands` join, status mapping)
+- **Profile** → `ProfilesRepo.currentProfile()` (name, handle, follower count, Pro/free chip)
+
+The Editor, AI Recs, Templates, and Paywall remain static — they're either purely visual or need real AI/payment integrations (Replicate + RevenueCat) before they're worth wiring.
+
+### What's not in scope yet
+
+- **Auth UI** — `AuthService` has `signInWithPassword` / `signUp` / `signOut` ready, but no login screen ships. Pair with `supabase.auth.onAuthStateChange` and gate the shell on `currentUser`.
+- **Storage** — original/edited photos. Pattern: bucket per-user, `projects.photo_path` column pointing at `${owner_id}/${project_id}/edit.jpg`.
+- **AI pipeline** — when the user taps "Generate" in Editor, hit a Supabase Edge Function that calls Replicate / fal.ai and updates a `projects.edit_jobs` row with progress.
+- **Payments** — Paywall → RevenueCat → webhook → `profiles.tier = 'pro'`.
 
 ## Design tokens
 

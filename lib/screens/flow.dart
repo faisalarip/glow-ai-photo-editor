@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
+import '../services/briefs_repo.dart';
+import '../services/models/models.dart';
 import '../widgets/glow_btn.dart';
 import '../widgets/glow_icon.dart';
 import '../widgets/photo.dart';
@@ -310,124 +312,136 @@ class _Opt extends StatelessWidget {
 }
 
 // ── BRAND INBOX ──────────────────────────────────────────────────────────────
-class BrandInboxScreen extends StatelessWidget {
+class BrandInboxScreen extends StatefulWidget {
   const BrandInboxScreen({super.key});
+  @override
+  State<BrandInboxScreen> createState() => _BrandInboxScreenState();
+}
 
-  static const _briefs = [
-    _Brief('Aura', 'Skincare', 'Serum endorse · 5 foto + 1 reels',
-        'Rp 4.5jt + 8% komisi', 'Senin, 21 Mei', true, PhotoVariant.pastel,
-        ProductKind.skincare),
-    _Brief('Sonder', 'Fashion', 'Summer lookbook · 8 outfit', 'Rp 8jt fixed',
-        'Jumat, 25 Mei', true, PhotoVariant.night, ProductKind.fashion),
-    _Brief('Bali Bites', 'Food', 'Menu launch · 1 reels + carousel',
-        'Rp 3.2jt + dinner', 'Kamis, 24 Mei', true, PhotoVariant.enhanced,
-        ProductKind.food),
-    _Brief('Lumo', 'Tech', 'Smart light review · 3 foto', 'Rp 2.8jt + free unit',
-        'Selasa, 29 Mei', false, PhotoVariant.moody, ProductKind.gadget),
-    _Brief('Hush', 'Lifestyle', 'Morning routine · 1 vlog', 'Rp 5jt',
-        'Sabtu, 2 Jun', false, PhotoVariant.studio, ProductKind.skincare),
+class _BrandInboxScreenState extends State<BrandInboxScreen> {
+  late final Future<List<Brief>> _briefsFuture = BriefsRepo.openBriefs();
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
   ];
+  static const _weekdays = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+  String _formatDeadline(DateTime d) {
+    final wd = _weekdays[(d.weekday - 1) % 7];
+    return '$wd, ${d.day} ${_months[d.month - 1]}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = GlowTheme.of(context).palette;
     return GlowScreen(
-      child: Stack(
-        children: [
-          Positioned(
-            top: 56,
-            left: 16,
-            right: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: FutureBuilder<List<Brief>>(
+        future: _briefsFuture,
+        builder: (context, snap) {
+          final briefs = snap.data ?? const <Brief>[];
+          final newCount = briefs.where((b) => b.isNew).length;
+          return Stack(
+            children: [
+              Positioned(
+                top: 56,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Inbox brief',
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: t.text,
-                        letterSpacing: -1,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Inbox brief',
+                          style: GoogleFonts.inter(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: t.text,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        GlowIcon('filter', size: 20, color: t.text),
+                      ],
                     ),
-                    GlowIcon('filter', size: 20, color: t.text),
+                    const SizedBox(height: 4),
+                    Text(
+                      snap.connectionState == ConnectionState.waiting
+                          ? 'Memuat brief…'
+                          : '$newCount brief baru · cocok ${briefs.length} untuk kamu',
+                      style: GoogleFonts.inter(fontSize: 12, color: t.muted),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '5 brief baru · cocok 4 untuk kamu',
-                  style: GoogleFonts.inter(fontSize: 12, color: t.muted),
-                ),
-              ],
-            ),
-          ),
-          // Filters
-          Positioned(
-            top: 134,
-            left: 0,
-            right: 0,
-            child: SizedBox(
-              height: 34,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  GlowChip(active: true, child: const Text('Semua · 12')),
-                  const SizedBox(width: 6),
-                  const GlowChip(child: Text('Baru · 3')),
-                  const SizedBox(width: 6),
-                  const GlowChip(child: Text('High pay · 2')),
-                  const SizedBox(width: 6),
-                  const GlowChip(child: Text('Beauty · 4')),
-                  const SizedBox(width: 6),
-                  const GlowChip(child: Text('Fashion · 2')),
-                ],
               ),
-            ),
-          ),
-          // List
-          Positioned(
-            top: 188,
-            left: 16,
-            right: 16,
-            bottom: 100,
-            child: ListView.separated(
-              itemCount: _briefs.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _BriefCard(brief: _briefs[i]),
-            ),
-          ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GlowTabBar(active: 'briefs'),
-          ),
-        ],
+              Positioned(
+                top: 134,
+                left: 0,
+                right: 0,
+                child: SizedBox(
+                  height: 34,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      GlowChip(
+                          active: true,
+                          child: Text('Semua · ${briefs.length}')),
+                      const SizedBox(width: 6),
+                      GlowChip(child: Text('Baru · $newCount')),
+                      const SizedBox(width: 6),
+                      const GlowChip(child: Text('High pay')),
+                      const SizedBox(width: 6),
+                      const GlowChip(child: Text('Beauty')),
+                      const SizedBox(width: 6),
+                      const GlowChip(child: Text('Fashion')),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 188,
+                left: 16,
+                right: 16,
+                bottom: 100,
+                child: snap.connectionState == ConnectionState.waiting
+                    ? Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2, color: t.accent,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: briefs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (_, i) => _BriefCard(
+                          brief: briefs[i],
+                          formatDeadline: _formatDeadline,
+                        ),
+                      ),
+              ),
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: GlowTabBar(active: 'briefs'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _Brief {
-  final String brand;
-  final String cat;
-  final String title;
-  final String rate;
-  final String deadline;
-  final bool isNew;
-  final PhotoVariant mood;
-  final ProductKind product;
-  const _Brief(this.brand, this.cat, this.title, this.rate, this.deadline,
-      this.isNew, this.mood, this.product);
-}
-
 class _BriefCard extends StatelessWidget {
-  final _Brief brief;
-  const _BriefCard({required this.brief});
+  final Brief brief;
+  final String Function(DateTime) formatDeadline;
+  const _BriefCard({required this.brief, required this.formatDeadline});
 
   @override
   Widget build(BuildContext context) {
@@ -451,7 +465,7 @@ class _BriefCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  BrandMark(name: brief.brand, size: 42),
+                  BrandMark(name: brief.brandName, size: 42),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -460,7 +474,7 @@ class _BriefCard extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              brief.brand,
+                              brief.brandName,
                               style: GoogleFonts.inter(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -477,7 +491,7 @@ class _BriefCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                brief.cat,
+                                brief.brandCategory,
                                 style: GoogleFonts.inter(
                                   fontSize: 10,
                                   color: t.muted,
@@ -527,7 +541,7 @@ class _BriefCard extends StatelessWidget {
                     GlowIcon('flag', size: 12, color: t.muted),
                     const SizedBox(width: 5),
                     Text(
-                      brief.deadline,
+                      formatDeadline(brief.deadline),
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: t.muted,
@@ -536,7 +550,7 @@ class _BriefCard extends StatelessWidget {
                     const Spacer(),
                     PhotoPlaceholder(
                       variant: brief.mood,
-                      product: brief.product,
+                      product: brief.productKind,
                       width: 28,
                       height: 36,
                       radius: 5,

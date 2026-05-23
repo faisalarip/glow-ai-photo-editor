@@ -2,229 +2,248 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
+import '../services/models/models.dart';
+import '../services/profiles_repo.dart';
+import '../services/projects_repo.dart';
 import '../widgets/glow_btn.dart';
 import '../widgets/glow_icon.dart';
 import '../widgets/photo.dart';
 import '../widgets/primitives.dart';
 
 // ── LIBRARY ──────────────────────────────────────────────────────────────────
-class LibraryScreen extends StatelessWidget {
+class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
+  @override
+  State<LibraryScreen> createState() => _LibraryScreenState();
+}
 
-  static const _projects = <_Project>[
-    _Project('Aura Serum', PhotoVariant.enhanced, ProductKind.skincare, '14 Mei',
-        5, 'Done', 'Aura'),
-    _Project('Sonder Outfit', PhotoVariant.moody, ProductKind.fashion, '12 Mei',
-        8, 'Draft', 'Sonder'),
-    _Project('Bali Bites Menu', PhotoVariant.pastel, ProductKind.food, '10 Mei',
-        12, 'Done', 'Bali Bites'),
-    _Project('Lumo Light', PhotoVariant.studio, ProductKind.gadget, '8 Mei', 3,
-        'In Edit', 'Lumo'),
-    _Project('Morning Self', PhotoVariant.night, ProductKind.skincare, '6 Mei',
-        4, 'Done', null),
-    _Project('Hush Routine', PhotoVariant.pastel, ProductKind.skincare, '4 Mei',
-        7, 'Done', 'Hush'),
+class _LibraryScreenState extends State<LibraryScreen> {
+  late final Future<List<Project>> _future = ProjectsRepo.myProjects();
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
   ];
+  String _formatDate(DateTime d) => '${d.day} ${_months[d.month - 1]}';
+  String _formatStatus(String s) => switch (s) {
+        'done' => 'Done',
+        'draft' => 'Draft',
+        'in_edit' => 'In Edit',
+        _ => s,
+      };
 
   @override
   Widget build(BuildContext context) {
     final t = GlowTheme.of(context).palette;
     final statusColor = <String, Color>{
-      'Done': t.success,
-      'Draft': t.warn,
-      'In Edit': t.info,
+      'done': t.success,
+      'draft': t.warn,
+      'in_edit': t.info,
     };
     return GlowScreen(
-      child: Stack(
-        children: [
-          Positioned(
-            top: 56,
-            left: 16,
-            right: 16,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: FutureBuilder<List<Project>>(
+        future: _future,
+        builder: (context, snap) {
+          final projects = snap.data ?? const <Project>[];
+          return Stack(
+            children: [
+              Positioned(
+                top: 56,
+                left: 16,
+                right: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Library',
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: t.text,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    Text(
-                      '142 foto · 2.4 GB',
-                      style: GoogleFonts.inter(fontSize: 12, color: t.muted),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _ViewToggle(icon: 'grid', active: true),
-                    const SizedBox(width: 8),
-                    _ViewToggle(icon: 'list'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 134,
-            left: 0,
-            right: 0,
-            child: SizedBox(
-              height: 34,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: const [
-                  GlowChip(active: true, child: Text('Semua')),
-                  SizedBox(width: 6),
-                  GlowChip(child: Text('Done')),
-                  SizedBox(width: 6),
-                  GlowChip(child: Text('Draft')),
-                  SizedBox(width: 6),
-                  GlowChip(child: Text('Sponsored')),
-                  SizedBox(width: 6),
-                  GlowChip(child: Text('Personal')),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 188,
-            left: 16,
-            right: 16,
-            bottom: 100,
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.6,
-              ),
-              itemCount: _projects.length,
-              itemBuilder: (_, i) {
-                final p = _projects[i];
-                final sc = statusColor[p.status] ?? t.muted;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 228,
-                      child: Stack(
-                        children: [
-                          PhotoPlaceholder(
-                            variant: p.variant,
-                            product: p.product,
-                            width: 172,
-                            height: 228,
-                            radius: 12,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Library',
+                          style: GoogleFonts.inter(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: t.text,
+                            letterSpacing: -1,
                           ),
-                          if (p.count > 1)
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                        ),
+                        Text(
+                          snap.connectionState == ConnectionState.waiting
+                              ? 'Memuat…'
+                              : '${projects.length} foto',
+                          style: GoogleFonts.inter(fontSize: 12, color: t.muted),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        _ViewToggle(icon: 'grid', active: true),
+                        const SizedBox(width: 8),
+                        _ViewToggle(icon: 'list'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 134,
+                left: 0,
+                right: 0,
+                child: SizedBox(
+                  height: 34,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: const [
+                      GlowChip(active: true, child: Text('Semua')),
+                      SizedBox(width: 6),
+                      GlowChip(child: Text('Done')),
+                      SizedBox(width: 6),
+                      GlowChip(child: Text('Draft')),
+                      SizedBox(width: 6),
+                      GlowChip(child: Text('Sponsored')),
+                      SizedBox(width: 6),
+                      GlowChip(child: Text('Personal')),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 188,
+                left: 16,
+                right: 16,
+                bottom: 100,
+                child: snap.connectionState == ConnectionState.waiting
+                    ? Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2, color: t.accent),
+                        ),
+                      )
+                    : GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 0.6,
+                        ),
+                        itemCount: projects.length,
+                        itemBuilder: (_, i) {
+                          final p = projects[i];
+                          final sc = statusColor[p.status] ?? t.muted;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 228,
+                                child: Stack(
                                   children: [
-                                    const GlowIcon('layer',
-                                        size: 10, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${p.count}',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
+                                    PhotoPlaceholder(
+                                      variant: p.photoVariant,
+                                      product: p.productKind,
+                                      width: 172,
+                                      height: 228,
+                                      radius: 12,
+                                    ),
+                                    if (p.layerCount > 1)
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.6),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const GlowIcon('layer',
+                                                  size: 10,
+                                                  color: Colors.white),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${p.layerCount}',
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
+                                    if (p.brandName != null)
+                                      Positioned(
+                                        bottom: 8,
+                                        left: 8,
+                                        child: BrandMark(
+                                            name: p.brandName!, size: 24),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 2),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            p.label,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: t.text,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                              color: sc,
+                                              shape: BoxShape.circle),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      '${_formatDate(p.createdAt)} · ${_formatStatus(p.status)}',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 10, color: t.muted),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
-                          if (p.brand != null)
-                            Positioned(
-                              bottom: 8,
-                              left: 8,
-                              child: BrandMark(name: p.brand!, size: 24),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 2),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  p.label,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: t.text,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration:
-                                    BoxDecoration(color: sc, shape: BoxShape.circle),
-                              ),
                             ],
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            '${p.date} · ${p.status}',
-                            style: GoogleFonts.inter(fontSize: 10, color: t.muted),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GlowTabBar(active: 'library'),
-          ),
-        ],
+              ),
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: GlowTabBar(active: 'library'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
-}
-
-class _Project {
-  final String label;
-  final PhotoVariant variant;
-  final ProductKind product;
-  final String date;
-  final int count;
-  final String status;
-  final String? brand;
-  const _Project(this.label, this.variant, this.product, this.date, this.count,
-      this.status, this.brand);
 }
 
 class _ViewToggle extends StatelessWidget {
@@ -248,15 +267,31 @@ class _ViewToggle extends StatelessWidget {
   }
 }
 
+String _formatFollowers(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}k';
+  return '$n';
+}
+
 // ── PROFILE ──────────────────────────────────────────────────────────────────
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late final Future<Profile> _profile = ProfilesRepo.currentProfile();
 
   @override
   Widget build(BuildContext context) {
     final t = GlowTheme.of(context).palette;
     return GlowScreen(
-      child: Stack(
+      child: FutureBuilder<Profile>(
+        future: _profile,
+        builder: (context, snap) {
+          final p = snap.data;
+          return Stack(
         children: [
           Positioned(
             top: 56,
@@ -304,8 +339,8 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       shape: BoxShape.circle,
                     ),
-                    child: const ClipOval(
-                      child: Avatar(name: 'Andin', size: 59),
+                    child: ClipOval(
+                      child: Avatar(name: p?.fullName ?? 'Andin', size: 59),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -314,7 +349,7 @@ class ProfileScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Andin Pradipta',
+                          p?.fullName ?? 'Andin Pradipta',
                           style: GoogleFonts.inter(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -324,7 +359,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 1),
                         Text(
-                          '@andin.id · 124k followers',
+                          '@${p?.handle ?? 'andin.id'} · ${_formatFollowers(p?.followers ?? 124000)} followers',
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: t.muted,
@@ -333,20 +368,23 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 8),
                         Row(
                           children: [
+                            if ((p?.tier ?? 'pro') == 'pro')
+                              GlowChip(
+                                size: ChipSize.sm,
+                                bgOverride:
+                                    t.accent.withValues(alpha: 0.12),
+                                textOverride: t.accent,
+                                borderOverride:
+                                    t.accent.withValues(alpha: 0.25),
+                                icon: GlowIcon('star',
+                                    size: 11, color: t.accent),
+                                child: const Text('Pro'),
+                              ),
+                            if ((p?.tier ?? 'pro') == 'pro')
+                              const SizedBox(width: 6),
                             GlowChip(
                               size: ChipSize.sm,
-                              bgOverride: t.accent.withValues(alpha: 0.12),
-                              textOverride: t.accent,
-                              borderOverride:
-                                  t.accent.withValues(alpha: 0.25),
-                              icon:
-                                  GlowIcon('star', size: 11, color: t.accent),
-                              child: const Text('Pro'),
-                            ),
-                            const SizedBox(width: 6),
-                            const GlowChip(
-                              size: ChipSize.sm,
-                              child: Text('Beauty · Lifestyle'),
+                              child: Text(p?.bio ?? 'Beauty · Lifestyle'),
                             ),
                           ],
                         ),
@@ -461,6 +499,8 @@ class ProfileScreen extends StatelessWidget {
             child: GlowTabBar(active: 'profile'),
           ),
         ],
+      );
+        },
       ),
     );
   }

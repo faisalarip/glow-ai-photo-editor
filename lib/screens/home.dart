@@ -3,14 +3,25 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/strings.dart';
 import '../core/theme.dart';
+import '../services/briefs_repo.dart';
+import '../services/models/models.dart';
+import '../services/profiles_repo.dart';
 import '../widgets/glow_btn.dart';
 import '../widgets/glow_icon.dart';
 import '../widgets/photo.dart';
 import '../widgets/primitives.dart';
 
 // ── HOME A — Feed-style (Lightroom Mobile inspired) ─────────────────────────
-class HomeA extends StatelessWidget {
+class HomeA extends StatefulWidget {
   const HomeA({super.key});
+  @override
+  State<HomeA> createState() => _HomeAState();
+}
+
+class _HomeAState extends State<HomeA> {
+  late final Future<Profile> _profile = ProfilesRepo.currentProfile();
+  late final Future<List<Brief>> _briefs = BriefsRepo.openBriefs();
+
   @override
   Widget build(BuildContext context) {
     final t = GlowTheme.of(context).palette;
@@ -36,14 +47,22 @@ class HomeA extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Text(
-                      'Andin ✨',
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: t.text,
-                        letterSpacing: -1,
-                      ),
+                    FutureBuilder<Profile>(
+                      future: _profile,
+                      builder: (_, snap) {
+                        final first = (snap.data?.fullName ?? 'Andin')
+                            .split(' ')
+                            .first;
+                        return Text(
+                          '$first ✨',
+                          style: GoogleFonts.inter(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: t.text,
+                            letterSpacing: -1,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -169,70 +188,84 @@ class HomeA extends StatelessWidget {
               ),
             ),
           ),
-          // Brief notification
+          // Brief notification (live from BriefsRepo)
           Positioned(
             top: 320,
             left: 20,
             right: 20,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: t.surface,
-                border: Border.all(color: t.line),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const BrandMark(name: 'Aura', size: 42),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+            child: FutureBuilder<List<Brief>>(
+              future: _briefs,
+              builder: (_, snap) {
+                final brief = (snap.data?.isNotEmpty ?? false)
+                    ? snap.data!.first
+                    : null;
+                final brand = brief?.brandName ?? 'Aura';
+                final sub = brief != null
+                    ? '${brief.title.split(' · ').first}, ${brief.rate}'
+                    : 'Endorse serum, Rp 4.5jt + komisi 8%';
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: t.surface,
+                    border: Border.all(color: t.line),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      BrandMark(name: brand, size: 42),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Aura Skincare',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: t.text,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: t.accent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'BRIEF BARU',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: t.accent,
-                                  letterSpacing: 0.4,
+                            Row(
+                              children: [
+                                Text(
+                                  '$brand ${brief?.brandCategory ?? 'Skincare'}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: t.text,
+                                  ),
                                 ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: t.accent.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'BRIEF BARU',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: t.accent,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              sub,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: t.muted,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Endorse serum, Rp 4.5jt + komisi 8%',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: t.muted,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      GlowIcon('chevron_r', size: 18, color: t.muted),
+                    ],
                   ),
-                  GlowIcon('chevron_r', size: 18, color: t.muted),
-                ],
-              ),
+                );
+              },
             ),
           ),
           // Recent projects
