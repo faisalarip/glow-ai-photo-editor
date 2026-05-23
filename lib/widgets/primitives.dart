@@ -601,11 +601,11 @@ class GlowTabBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: tabs.map((tab) {
-          final id = tab.$1 as String;
-          final icon = tab.$2 as String;
-          final label = tab.$3 as String;
-          final highlight = tab.$4 as bool;
-          final badge = tab.$5 as int?;
+          final id = tab.$1;
+          final icon = tab.$2;
+          final label = tab.$3;
+          final highlight = tab.$4;
+          final badge = tab.$5;
           final isActive = id == active;
           final c = isActive ? t.accent : t.muted;
           return GestureDetector(

@@ -575,7 +575,6 @@ class AIStatusCycler extends StatefulWidget {
 class _AIStatusCyclerState extends State<AIStatusCycler> {
   late final List<String> _list;
   int _idx = 0;
-  late final Stream<int> _timer;
 
   static const _defaults = [
     'Analyzing photo…',
