@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthState;
+
 import 'core/theme.dart';
 import 'screens/ai_recs.dart';
+import 'screens/auth_screen.dart';
 import 'screens/editor.dart';
 import 'screens/flow.dart';
 import 'screens/home.dart';
 import 'screens/library_profile_paywall.dart';
 import 'screens/onboarding.dart';
 import 'screens/templates_compare.dart';
+import 'services/auth_service.dart';
+import 'services/env.dart';
 import 'services/supabase_client.dart';
 import 'widgets/glow_icon.dart';
 import 'widgets/primitives.dart';
@@ -47,8 +52,35 @@ class _GlowAppState extends State<GlowApp> {
                 : ThemeData.light().textTheme,
           ),
         ),
-        home: const _Shell(),
+        home: const _AuthGate(),
       ),
+    );
+  }
+}
+
+/// Streams Supabase auth state and decides between the auth screen and the
+/// app shell. When Supabase isn't configured (offline demo mode) the gate
+/// bypasses auth and shows the shell directly.
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Env.isConfigured) {
+      return const _Shell();
+    }
+    return StreamBuilder<AuthState>(
+      stream: AuthService.onAuthStateChange,
+      builder: (context, snap) {
+        final hasSession =
+            AuthService.currentUser != null || snap.data?.session != null;
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: hasSession
+              ? const _Shell(key: ValueKey('shell'))
+              : const AuthScreen(key: ValueKey('auth')),
+        );
+      },
     );
   }
 }
@@ -56,7 +88,7 @@ class _GlowAppState extends State<GlowApp> {
 /// 11 screen flows reachable via bottom tabs + a "View all" sheet that lists
 /// every variant for the design walkthrough.
 class _Shell extends StatefulWidget {
-  const _Shell();
+  const _Shell({super.key});
   @override
   State<_Shell> createState() => _ShellState();
 }

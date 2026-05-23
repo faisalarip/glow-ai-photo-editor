@@ -1,9 +1,42 @@
+import 'dart:math';
+
 import '../widgets/photo.dart';
 import 'env.dart';
 import 'models/models.dart';
 import 'supabase_client.dart';
 
 class ProjectsRepo {
+  /// Inserts a sample project owned by the signed-in user. Used by the Library
+  /// "+" button so people can see the full create → list loop without writing
+  /// SQL. No-op when offline / not signed in.
+  static Future<Project?> createSample() async {
+    if (!Env.isConfigured) return null;
+    final user = SupabaseInit.client.auth.currentUser;
+    if (user == null) return null;
+
+    const samples = [
+      ('Aura Serum', 'enhanced', 'skincare'),
+      ('Sonder Tee', 'moody', 'fashion'),
+      ('Bali Bites Bowl', 'pastel', 'food'),
+      ('Lumo Light Setup', 'studio', 'gadget'),
+      ('Morning Self', 'night', 'skincare'),
+    ];
+    final pick = samples[Random().nextInt(samples.length)];
+    final res = await SupabaseInit.client
+        .from('projects')
+        .insert({
+          'owner_id': user.id,
+          'label': pick.$1,
+          'photo_variant': pick.$2,
+          'product_kind': pick.$3,
+          'layer_count': 1 + Random().nextInt(8),
+          'status': ['draft', 'in_edit', 'done'][Random().nextInt(3)],
+        })
+        .select('*, brands(name)')
+        .single();
+    return Project.fromJoinedJson(res);
+  }
+
   /// Returns the signed-in user's projects, or mocks when offline.
   static Future<List<Project>> myProjects() async {
     if (!Env.isConfigured) return _mocks();

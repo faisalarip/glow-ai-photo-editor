@@ -63,9 +63,20 @@ When `SUPABASE_URL` is unset, `Env.isConfigured == false` and every repo returns
 
 The Editor, AI Recs, Templates, and Paywall remain static — they're either purely visual or need real AI/payment integrations (Replicate + RevenueCat) before they're worth wiring.
 
+### Auth flow
+
+The app boots into `_AuthGate` (`lib/main.dart`) which streams `auth.onAuthStateChange`:
+
+- **No Supabase configured** → gate bypassed, shell renders with mock data
+- **Configured + signed out** → `AuthScreen` (email/password, toggleable sign-in / sign-up)
+- **Configured + signed in** → shell with live data; Profile → Library → "Keluar" row signs out
+
+Sign-up does **email confirmation by default**. For local dev, turn it off at **Authentication → Sign In / Providers → Email → uncheck "Confirm email"** in Supabase Studio so you can land in the app immediately after signing up.
+
+The Library screen has a floating **"+" button** that inserts a sample project (`ProjectsRepo.createSample`) tied to the current user — that's the simplest way to verify auth + RLS + the user-scoped read all work end-to-end.
+
 ### What's not in scope yet
 
-- **Auth UI** — `AuthService` has `signInWithPassword` / `signUp` / `signOut` ready, but no login screen ships. Pair with `supabase.auth.onAuthStateChange` and gate the shell on `currentUser`.
 - **Storage** — original/edited photos. Pattern: bucket per-user, `projects.photo_path` column pointing at `${owner_id}/${project_id}/edit.jpg`.
 - **AI pipeline** — when the user taps "Generate" in Editor, hit a Supabase Edge Function that calls Replicate / fal.ai and updates a `projects.edit_jobs` row with progress.
 - **Payments** — Paywall → RevenueCat → webhook → `profiles.tier = 'pro'`.

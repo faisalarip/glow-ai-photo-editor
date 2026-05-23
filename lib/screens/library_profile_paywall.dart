@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/theme.dart';
+import '../services/auth_service.dart';
 import '../services/models/models.dart';
 import '../services/profiles_repo.dart';
 import '../services/projects_repo.dart';
@@ -18,7 +19,34 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  late final Future<List<Project>> _future = ProjectsRepo.myProjects();
+  Future<List<Project>> _future = ProjectsRepo.myProjects();
+  bool _creating = false;
+
+  void _refresh() => setState(() => _future = ProjectsRepo.myProjects());
+
+  Future<void> _createSample() async {
+    setState(() => _creating = true);
+    try {
+      final created = await ProjectsRepo.createSample();
+      if (!mounted) return;
+      if (created == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign in dulu untuk bikin project'),
+          ),
+        );
+        return;
+      }
+      _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _creating = false);
+    }
+  }
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
@@ -238,6 +266,45 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 bottom: 0,
                 child: GlowTabBar(active: 'library'),
               ),
+              Positioned(
+                right: 18,
+                bottom: 100,
+                child: GestureDetector(
+                  onTap: _creating ? null : _createSample,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [t.accent, t.ai],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: t.accent.withValues(alpha: 0.4),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: _creating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const GlowIcon('plus',
+                              size: 22, color: Colors.white, strokeWidth: 2.4),
+                    ),
+                  ),
+                ),
+              ),
             ],
           );
         },
@@ -423,12 +490,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               clipBehavior: Clip.antiAlias,
               child: Column(
-                children: const [
-                  _MenuRow(icon: 'palette', label: 'Brand kit kamu', sub: '3 mood disimpan'),
-                  _MenuRow(icon: 'money', label: 'Pendapatan & withdraw', sub: 'Rp 4.2jt available'),
-                  _MenuRow(icon: 'flag', label: 'Goals minggu ini', sub: '4 dari 7 selesai'),
-                  _MenuRow(icon: 'bell', label: 'Notifikasi', sub: 'Push + email'),
-                  _MenuRow(icon: 'lock', label: 'Privasi & keamanan', last: true),
+                children: [
+                  const _MenuRow(
+                      icon: 'palette',
+                      label: 'Brand kit kamu',
+                      sub: '3 mood disimpan'),
+                  const _MenuRow(
+                      icon: 'money',
+                      label: 'Pendapatan & withdraw',
+                      sub: 'Rp 4.2jt available'),
+                  const _MenuRow(
+                      icon: 'flag',
+                      label: 'Goals minggu ini',
+                      sub: '4 dari 7 selesai'),
+                  const _MenuRow(
+                      icon: 'bell', label: 'Notifikasi', sub: 'Push + email'),
+                  const _MenuRow(
+                      icon: 'lock', label: 'Privasi & keamanan'),
+                  _MenuRow(
+                    icon: 'arrow_r',
+                    label: 'Keluar',
+                    sub: 'Sign out',
+                    last: true,
+                    danger: true,
+                    onTap: () => AuthService.signOut(),
+                  ),
                 ],
               ),
             ),
@@ -546,17 +632,22 @@ class _MenuRow extends StatelessWidget {
   final String label;
   final String? sub;
   final bool last;
+  final bool danger;
+  final VoidCallback? onTap;
   const _MenuRow({
     required this.icon,
     required this.label,
     this.sub,
     this.last = false,
+    this.danger = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = GlowTheme.of(context).palette;
-    return Container(
+    final fg = danger ? t.danger : t.text;
+    final body = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         border: last ? null : Border(bottom: BorderSide(color: t.line)),
@@ -567,11 +658,13 @@ class _MenuRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: t.surface2,
+              color: danger
+                  ? t.danger.withValues(alpha: 0.1)
+                  : t.surface2,
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: GlowIcon(icon, size: 16, color: t.text2),
+            child: GlowIcon(icon, size: 16, color: danger ? t.danger : t.text2),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -583,7 +676,7 @@ class _MenuRow extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: t.text,
+                    color: fg,
                   ),
                 ),
                 if (sub != null) ...[
@@ -599,6 +692,12 @@ class _MenuRow extends StatelessWidget {
           GlowIcon('chevron_r', size: 16, color: t.muted),
         ],
       ),
+    );
+    if (onTap == null) return body;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: MouseRegion(cursor: SystemMouseCursors.click, child: body),
     );
   }
 }

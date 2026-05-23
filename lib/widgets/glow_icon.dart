@@ -113,7 +113,17 @@ class _IconPainter extends CustomPainter {
     double x = 0, y = 0, sx = 0, sy = 0;
     String cmd = 'M';
     int i = 0;
-    double take() => tokens[i++].toDouble();
+
+    // Returns the next numeric token, or null if we've hit end-of-stream or a
+    // new command letter (SVG paths can drop the command before its full arg
+    // count — we treat the missing args as a stop signal).
+    double? take() {
+      if (i >= tokens.length) return null;
+      final v = tokens[i];
+      if (v is! num) return null;
+      i++;
+      return v.toDouble();
+    }
 
     while (i < tokens.length) {
       final t = tokens[i];
@@ -129,68 +139,77 @@ class _IconPainter extends CustomPainter {
       }
       switch (cmd) {
         case 'M':
-          x = take();
-          y = take();
+          final nx = take(); final ny = take();
+          if (nx == null || ny == null) continue;
+          x = nx; y = ny;
           p.moveTo(x, y);
-          sx = x;
-          sy = y;
+          sx = x; sy = y;
           cmd = 'L';
           break;
         case 'm':
-          x += take();
-          y += take();
+          final dx = take(); final dy = take();
+          if (dx == null || dy == null) continue;
+          x += dx; y += dy;
           p.moveTo(x, y);
-          sx = x;
-          sy = y;
+          sx = x; sy = y;
           cmd = 'l';
           break;
         case 'L':
-          x = take();
-          y = take();
+          final nx = take(); final ny = take();
+          if (nx == null || ny == null) continue;
+          x = nx; y = ny;
           p.lineTo(x, y);
           break;
         case 'l':
-          x += take();
-          y += take();
+          final dx = take(); final dy = take();
+          if (dx == null || dy == null) continue;
+          x += dx; y += dy;
           p.lineTo(x, y);
           break;
         case 'H':
-          x = take();
-          p.lineTo(x, y);
+          final nx = take();
+          if (nx == null) continue;
+          x = nx; p.lineTo(x, y);
           break;
         case 'h':
-          x += take();
-          p.lineTo(x, y);
+          final dx = take();
+          if (dx == null) continue;
+          x += dx; p.lineTo(x, y);
           break;
         case 'V':
-          y = take();
-          p.lineTo(x, y);
+          final ny = take();
+          if (ny == null) continue;
+          y = ny; p.lineTo(x, y);
           break;
         case 'v':
-          y += take();
-          p.lineTo(x, y);
+          final dy = take();
+          if (dy == null) continue;
+          y += dy; p.lineTo(x, y);
           break;
         case 'A':
         case 'a': {
-          final rx = take();
-          final ry = take();
-          take(); // x-axis-rotation (ignored — circles only)
-          take(); // large-arc-flag
-          take(); // sweep-flag
-          final ex = cmd == 'A' ? take() : x + take();
-          final ey = cmd == 'A' ? take() : y + take();
-          p.arcToPoint(
-            Offset(ex, ey),
-            radius: Radius.elliptical(rx, ry),
-            largeArc: false,
-            clockwise: true,
-          );
-          x = ex;
-          y = ey;
+          // SVG arc is 7 args: rx ry x-rotation large-arc-flag sweep-flag x y.
+          // The tokenizer can merge flag-digits into bigger numbers (e.g.
+          // "100-10" → [100, -10]) so the count is unreliable. Burn whatever
+          // numbers come next until we hit a new command, then draw a straight
+          // line to the last (x,y) pair we read. Visually imperceptible at
+          // icon sizes.
+          double? lastX, lastY;
+          while (i < tokens.length && tokens[i] is num) {
+            final a = take();
+            final b = take();
+            if (a == null || b == null) break;
+            lastX = a; lastY = b;
+          }
+          if (lastX != null && lastY != null) {
+            final ex = cmd == 'A' ? lastX : x + lastX;
+            final ey = cmd == 'A' ? lastY : y + lastY;
+            p.lineTo(ex, ey);
+            x = ex; y = ey;
+          }
           break;
         }
         default:
-          // Skip unknown number; safety
           i++;
       }
     }
