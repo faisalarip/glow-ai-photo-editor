@@ -84,8 +84,12 @@ class GlowIcon extends StatelessWidget {
   }
 }
 
-/// Parses a minimal SVG path subset (M, L, H, V, A as curve approximation,
-/// Z, plus relative variants) — enough for the ~40 icons in the design.
+/// Single-pass, command-aware SVG path parser. Walks the source string
+/// character-by-character, dispatching per command — crucially, the A/a arc
+/// commands read their two flag bits as single digits (which can pack with
+/// adjacent numbers per SVG spec), then resume normal number parsing for x/y.
+/// Supports M, L, H, V, A, Z and their relative variants — enough for the
+/// ~40 icons in the design.
 class _IconPainter extends CustomPainter {
   final String path;
   final Color color;
@@ -108,131 +112,196 @@ class _IconPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    final tokens = _tokenize(path);
+    _parsePath(path).walk(canvas, paint);
+  }
+
+  static _PathResult _parsePath(String d) {
     final p = Path();
+    final _Cursor c = _Cursor(d);
     double x = 0, y = 0, sx = 0, sy = 0;
     String cmd = 'M';
-    int i = 0;
 
-    // Returns the next numeric token, or null if we've hit end-of-stream or a
-    // new command letter (SVG paths can drop the command before its full arg
-    // count — we treat the missing args as a stop signal).
-    double? take() {
-      if (i >= tokens.length) return null;
-      final v = tokens[i];
-      if (v is! num) return null;
-      i++;
-      return v.toDouble();
-    }
-
-    while (i < tokens.length) {
-      final t = tokens[i];
-      if (t is String) {
-        cmd = t;
-        i++;
+    while (!c.eof) {
+      c.skipSep();
+      if (c.eof) break;
+      // Either a command letter or an implicit-repeat of the prior command.
+      if (c.isCommandHere) {
+        cmd = c.takeChar();
         if (cmd == 'Z' || cmd == 'z') {
           p.close();
           x = sx;
           y = sy;
+          continue;
         }
-        continue;
       }
+
       switch (cmd) {
         case 'M':
-          final nx = take(); final ny = take();
-          if (nx == null || ny == null) continue;
-          x = nx; y = ny;
-          p.moveTo(x, y);
-          sx = x; sy = y;
+          x = c.readNum(); y = c.readNum();
+          p.moveTo(x, y); sx = x; sy = y;
           cmd = 'L';
           break;
         case 'm':
-          final dx = take(); final dy = take();
-          if (dx == null || dy == null) continue;
-          x += dx; y += dy;
-          p.moveTo(x, y);
-          sx = x; sy = y;
+          x += c.readNum(); y += c.readNum();
+          p.moveTo(x, y); sx = x; sy = y;
           cmd = 'l';
           break;
         case 'L':
-          final nx = take(); final ny = take();
-          if (nx == null || ny == null) continue;
-          x = nx; y = ny;
+          x = c.readNum(); y = c.readNum();
           p.lineTo(x, y);
           break;
         case 'l':
-          final dx = take(); final dy = take();
-          if (dx == null || dy == null) continue;
-          x += dx; y += dy;
+          x += c.readNum(); y += c.readNum();
           p.lineTo(x, y);
           break;
         case 'H':
-          final nx = take();
-          if (nx == null) continue;
-          x = nx; p.lineTo(x, y);
+          x = c.readNum();
+          p.lineTo(x, y);
           break;
         case 'h':
-          final dx = take();
-          if (dx == null) continue;
-          x += dx; p.lineTo(x, y);
+          x += c.readNum();
+          p.lineTo(x, y);
           break;
         case 'V':
-          final ny = take();
-          if (ny == null) continue;
-          y = ny; p.lineTo(x, y);
+          y = c.readNum();
+          p.lineTo(x, y);
           break;
         case 'v':
-          final dy = take();
-          if (dy == null) continue;
-          y += dy; p.lineTo(x, y);
+          y += c.readNum();
+          p.lineTo(x, y);
           break;
         case 'A':
         case 'a': {
-          // SVG arc is 7 args (rx ry x-rotation large-arc-flag sweep-flag x y)
-          // and the two flags pack with adjacent digits ("01-9" = "0 1 -9"),
-          // which our tokenizer can't disambiguate. Rather than risk drawing
-          // a line to a garbled endpoint, skip the rest of this command's
-          // numeric run and moveTo (no stroke) — leaves a gap where the arc
-          // would be but avoids glitch lines.
-          while (i < tokens.length && tokens[i] is num) {
-            i++;
-          }
+          final rx = c.readNum();
+          final ry = c.readNum();
+          final rot = c.readNum();
+          final largeArc = c.readFlag();
+          final sweep = c.readFlag();
+          final ex = c.readNum();
+          final ey = c.readNum();
+          final nx = cmd == 'A' ? ex : x + ex;
+          final ny = cmd == 'A' ? ey : y + ey;
+          p.arcToPoint(
+            Offset(nx, ny),
+            radius: Radius.elliptical(rx, ry),
+            rotation: rot,
+            largeArc: largeArc,
+            clockwise: sweep,
+          );
+          x = nx;
+          y = ny;
           break;
         }
         default:
-          i++;
+          // Unknown command — advance one char to avoid infinite loops.
+          c.bump();
       }
     }
-    canvas.drawPath(p, paint);
-  }
-
-  static final _cmdRe = RegExp(r'[MmLlHhVvAaZzCcSsQqTt]');
-  static final _numRe = RegExp(r'-?\d*\.?\d+');
-
-  List<dynamic> _tokenize(String s) {
-    final out = <dynamic>[];
-    int i = 0;
-    while (i < s.length) {
-      final ch = s[i];
-      if (_cmdRe.hasMatch(ch)) {
-        out.add(ch);
-        i++;
-      } else if (ch == ' ' || ch == ',') {
-        i++;
-      } else {
-        final m = _numRe.matchAsPrefix(s, i);
-        if (m != null) {
-          out.add(double.parse(m.group(0)!));
-          i = m.end;
-        } else {
-          i++;
-        }
-      }
-    }
-    return out;
+    return _PathResult(p);
   }
 
   @override
   bool shouldRepaint(_IconPainter old) =>
       old.path != path || old.color != color || old.strokeWidth != strokeWidth;
 }
+
+/// Renders a parsed [Path] given a [Paint]. Tiny wrapper so the parser can
+/// stay pure (returns a result, doesn't depend on `canvas`).
+class _PathResult {
+  final Path path;
+  _PathResult(this.path);
+  void walk(Canvas canvas, Paint paint) => canvas.drawPath(path, paint);
+}
+
+/// Cursor over the raw SVG path string. Knows how to skip separators, peek for
+/// command letters, read floats with optional sign / decimal / exponent, and
+/// read single-digit flag bytes used in arc commands.
+class _Cursor {
+  final String s;
+  int i = 0;
+  _Cursor(this.s);
+
+  bool get eof => i >= s.length;
+
+  void bump() {
+    if (!eof) i++;
+  }
+
+  String takeChar() {
+    final c = s[i];
+    i++;
+    return c;
+  }
+
+  bool get isCommandHere {
+    if (eof) return false;
+    final code = s.codeUnitAt(i);
+    // A-Z = 65..90, a-z = 97..122
+    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+  }
+
+  void skipSep() {
+    while (!eof) {
+      final c = s[i];
+      if (c == ' ' || c == ',' || c == '\t' || c == '\n' || c == '\r') {
+        i++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  /// SVG path numbers: optional leading sign, integer/decimal digits, optional
+  /// exponent. We stop at the first character that isn't part of a number.
+  double readNum() {
+    skipSep();
+    final start = i;
+    if (!eof && (s[i] == '+' || s[i] == '-')) i++;
+    bool sawDigit = false;
+    while (!eof) {
+      final c = s[i];
+      if (c.compareTo('0') >= 0 && c.compareTo('9') <= 0) {
+        sawDigit = true;
+        i++;
+      } else {
+        break;
+      }
+    }
+    if (!eof && s[i] == '.') {
+      i++;
+      while (!eof) {
+        final c = s[i];
+        if (c.compareTo('0') >= 0 && c.compareTo('9') <= 0) {
+          sawDigit = true;
+          i++;
+        } else {
+          break;
+        }
+      }
+    }
+    if (!eof && (s[i] == 'e' || s[i] == 'E')) {
+      i++;
+      if (!eof && (s[i] == '+' || s[i] == '-')) i++;
+      while (!eof) {
+        final c = s[i];
+        if (c.compareTo('0') >= 0 && c.compareTo('9') <= 0) {
+          i++;
+        } else {
+          break;
+        }
+      }
+    }
+    if (!sawDigit) return 0;
+    return double.parse(s.substring(start, i));
+  }
+
+  /// Arc flag — exactly one digit (0 or 1), no sign or decimal.
+  bool readFlag() {
+    skipSep();
+    if (eof) return false;
+    final c = s[i];
+    i++;
+    return c == '1';
+  }
+}
+
