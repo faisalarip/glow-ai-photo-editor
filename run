@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Convenience wrapper. Loads SUPABASE_URL / SUPABASE_ANON_KEY from
+# glow_config.json (gitignored) so you don't have to pass them every run.
+#
+# Usage:
+#   ./run                 → pick a device interactively (Flutter prompts)
+#   ./run web             → Chrome web, port 8780
+#   ./run ios             → first booted iOS simulator
+#   ./run <device-id>     → specific device
+set -euo pipefail
+cd "$(dirname "$0")"
+
+CONFIG="glow_config.json"
+if [ ! -f "$CONFIG" ]; then
+  echo "Missing $CONFIG. Copy glow_config.example.json and fill in your Supabase keys."
+  exit 1
+fi
+
+TARGET="${1:-}"
+case "$TARGET" in
+  web)
+    exec flutter run -d chrome --web-port 8780 --dart-define-from-file="$CONFIG"
+    ;;
+  ios)
+    DEVICE_ID=$(xcrun simctl list devices booted -j 2>/dev/null \
+      | python3 -c "import sys, json; ds=json.load(sys.stdin)['devices']; \
+        ids=[d['udid'] for v in ds.values() for d in v if d.get('state')=='Booted']; \
+        print(ids[0] if ids else '')")
+    if [ -z "$DEVICE_ID" ]; then
+      echo "No booted iOS simulator. Run: open -a Simulator"
+      exit 1
+    fi
+    exec flutter run -d "$DEVICE_ID" --dart-define-from-file="$CONFIG"
+    ;;
+  "")
+    exec flutter run --dart-define-from-file="$CONFIG"
+    ;;
+  *)
+    exec flutter run -d "$TARGET" --dart-define-from-file="$CONFIG"
+    ;;
+esac

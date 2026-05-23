@@ -27,3 +27,8 @@ pubspec.lock
 
 # Coverage
 coverage/
+
+# Local Supabase / env config — keys live here so we don't have to pass
+# --dart-define every run. Anon key is RLS-protected (safe in clients) but
+# we still don't want it in git history.
+glow_config.json

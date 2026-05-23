@@ -44,15 +44,26 @@ Schema lives under `supabase/migrations/0001_init.sql` — five tables (`profile
 1. **Create a Supabase project** at https://supabase.com/dashboard
 2. **Run the schema** — open the SQL Editor in Supabase Studio, paste the contents of `supabase/migrations/0001_init.sql`, run. Then paste `supabase/seed/seed.sql` and run.
 3. **Copy your project URL + anon key** from Project Settings → API
-4. **Run the app with the keys passed in:**
+4. **Save them locally** — copy the template and fill in your values:
 
 ```bash
-flutter run \
-  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=eyJh...
+cp glow_config.example.json glow_config.json
+# edit glow_config.json — paste your URL + anon key
 ```
 
-When `SUPABASE_URL` is unset, `Env.isConfigured == false` and every repo returns the original demo data — so you can keep iterating the UI offline without a backend.
+`glow_config.json` is gitignored so the keys stay on your machine.
+
+5. **Run with the `./run` wrapper:**
+
+```bash
+./run web      # Chrome on localhost:8780
+./run ios      # first booted iOS simulator (boot one first via Simulator.app)
+./run          # interactive — Flutter prompts for a device
+```
+
+The wrapper just calls `flutter run --dart-define-from-file=glow_config.json`. If you'd rather pass flags by hand: `flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...` works exactly the same.
+
+When `glow_config.json` is missing (or `SUPABASE_URL` is unset), `Env.isConfigured == false` and every repo returns the original demo data — so you can keep iterating the UI offline without a backend.
 
 ### What's wired
 
