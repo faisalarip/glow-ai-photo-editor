@@ -301,7 +301,7 @@ class _HomeAState extends State<HomeA> {
                   ),
                 ),
                 SizedBox(
-                  height: 200,
+                  height: 218,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),

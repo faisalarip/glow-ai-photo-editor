@@ -121,15 +121,18 @@ class _TemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        PhotoPlaceholder(
-          variant: tmpl.variant,
-          product: tmpl.product,
-          width: double.infinity,
-          height: double.infinity,
-          radius: 14,
-        ),
+    return LayoutBuilder(
+      builder: (context, c) => Stack(
+        children: [
+          Positioned.fill(
+            child: PhotoPlaceholder(
+              variant: tmpl.variant,
+              product: tmpl.product,
+              width: c.maxWidth,
+              height: c.maxHeight,
+              radius: 14,
+            ),
+          ),
         if (tmpl.pro)
           Positioned(
             top: 8,
@@ -193,6 +196,7 @@ class _TemplateCard extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
   }
 }

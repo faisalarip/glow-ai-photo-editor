@@ -619,27 +619,29 @@ class GlowTabBar extends StatelessWidget {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (highlight)
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            gradient: isActive
-                                ? LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [t.accent, t.ai],
-                                  )
-                                : null,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: GlowIcon(icon,
-                              size: 20,
-                              color: isActive ? Colors.white : c),
-                        )
-                      else
-                        GlowIcon(icon, size: 22, color: c),
+                      // Every tab gets a 36×36 slot so labels share a baseline.
+                      // Highlight tabs fill the slot with a gradient when active;
+                      // others leave the slot transparent and center the icon.
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          gradient: highlight && isActive
+                              ? LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [t.accent, t.ai],
+                                )
+                              : null,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: GlowIcon(
+                          icon,
+                          size: highlight ? 20 : 22,
+                          color: highlight && isActive ? Colors.white : c,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         label,
